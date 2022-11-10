@@ -38,9 +38,31 @@ namespace OctopusController
                     break;
                 case TentacleMode.TENTACLE:
                     //TODO: in _endEffectorphere you  keep a reference to the sphere with a collider attached to the endEffector
+                    {
+                        SetTentacleBones(root);
+                    }
                     break;
             }
             return Bones;
         }
+
+
+        private void SetTentacleBones(Transform root)
+        {
+            Transform bone = root.GetChild(0).GetChild(0);
+
+            List<Transform> bones = new List<Transform>();
+
+            while (bone.childCount > 0)
+            {
+                bones.Add(bone);
+                bone = bone.GetChild(0);
+            }
+
+            _bones = bones.ToArray();
+
+            _endEffectorSphere = bone;
+        }
+
     }
 }
