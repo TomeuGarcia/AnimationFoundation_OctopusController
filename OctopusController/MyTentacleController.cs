@@ -21,6 +21,7 @@ namespace OctopusController
         Transform _endEffectorSphere;
 
         public Transform[] Bones { get => _bones; }
+        public Transform EndEffectorSphere { set => _endEffectorSphere = value; }
 
         //Exercise 1.
         public Transform[] LoadTentacleJoints(Transform root, TentacleMode mode)

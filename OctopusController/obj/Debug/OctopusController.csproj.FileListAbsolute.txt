@@ -36,3 +36,21 @@ E:\Trabajo\Classes Enti\Practicas2019-20\delivery2-2019-20\MyOctopusLibrary\Octo
 E:\Trabajo\Classes Enti\Practicas2019-20\delivery2-2019-20\MyOctopusLibrary\OctopusController\OctopusController\obj\Debug\OctopusController.csproj.CopyComplete
 E:\Trabajo\Classes Enti\Practicas2019-20\delivery2-2019-20\MyOctopusLibrary\OctopusController\OctopusController\obj\Debug\OctopusController.dll
 E:\Trabajo\Classes Enti\Practicas2019-20\delivery2-2019-20\MyOctopusLibrary\OctopusController\OctopusController\obj\Debug\OctopusController.pdb
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\OctopusController.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\OctopusController.pdb
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.Cecil.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.SerializationLogic.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.DataContract.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\ExCSS.Unity.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.Legacy.NRefactory.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.UNetWeaver.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.CecilTools.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.Cecil.Pdb.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\Unity.Cecil.Mdb.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\UnityEditor.xml
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\bin\Debug\UnityEngine.xml
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\obj\Debug\OctopusController.csproj.AssemblyReference.cache
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\obj\Debug\OctopusController.csproj.CoreCompileInputs.cache
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\obj\Debug\OctopusController.csproj.CopyComplete
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\obj\Debug\OctopusController.dll
+D:\GitKraken\AnimationFoundation_OctopusController\OctopusController\obj\Debug\OctopusController.pdb

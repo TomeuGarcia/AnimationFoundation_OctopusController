@@ -18,15 +18,32 @@ namespace OctopusController
         Transform _target;
 
         Transform[] _randomTargets;// = new Transform[4];
-
+        int _tentacleToTargetIndex = 0; // start at 0 
 
         float _twistMin, _twistMax;
         float _swingMin, _swingMax;
 
 
-        float[] _theta;
-        float[] _sin;
-        float[] _cos;
+        float _theta;
+        float _sin;
+        float _cos;
+
+        private Dictionary<Transform, int> regionToTentacleIndex;
+
+
+        // Max number of tries before the system gives up (Maybe 10 is too high?)
+        private int _mtries = 10;
+        // The number of tries the system is at now
+        private int[] _tries;
+
+        // the range within which the target will be assumed to be reached
+        readonly float _epsilon = 0.1f;
+
+        // To check if the target is reached at any point
+        bool _done = false;
+
+        // To store the position of the target
+        private Vector3[] tpos;
 
 
         #region public methods
@@ -49,23 +66,28 @@ namespace OctopusController
 
         public void Init(Transform[] tentacleRoots, Transform[] randomTargets)
         {
+            _randomTargets = randomTargets;
+
             _tentacles = new MyTentacleController[tentacleRoots.Length];
+            tpos = new Vector3[tentacleRoots.Length];
+            _tries = new int[tentacleRoots.Length];
+            regionToTentacleIndex = new Dictionary<Transform, int>();
+
 
             // foreach (Transform t in tentacleRoots)
-            for(int i = 0;  i  < tentacleRoots.Length; i++)
+            for (int i = 0;  i  < tentacleRoots.Length; i++)
             {
 
                 _tentacles[i] = new MyTentacleController();
                 _tentacles[i].LoadTentacleJoints(tentacleRoots[i],TentacleMode.TENTACLE);
+
                 //TODO: initialize any variables needed in ccd
+                tpos[i] = randomTargets[i].position;
+                _tries[i] = 0;
+
+                //TODO: use the regions however you need to make sure each tentacle stays in its region
+                regionToTentacleIndex.Add(randomTargets[i].parent, i);
             }
-
-            _randomTargets = randomTargets;
-            //TODO: use the regions however you need to make sure each tentacle stays in its region
-
-            _theta = new float[_tentacles[0].Bones.Length];
-            _sin = new float[_tentacles[0].Bones.Length];
-            _cos = new float[_tentacles[0].Bones.Length];
         }
 
               
@@ -73,6 +95,13 @@ namespace OctopusController
         {
             _currentRegion = region;
             _target = target;
+
+            
+            if (regionToTentacleIndex.ContainsKey(region))
+            {
+                _tentacleToTargetIndex = regionToTentacleIndex[region];
+            }
+            
         }
 
         public void NotifyShoot() {
@@ -98,55 +127,92 @@ namespace OctopusController
 
         void update_ccd() 
         {
+
             for (int tentacleI = 0; tentacleI < _tentacles.Length; ++tentacleI)
-            {              
+            {
+                Transform[] tentacleBones = _tentacles[tentacleI].Bones;
 
-                for (int i = _tentacles[tentacleI].Bones.Length - 2; i >= 0; i--)
+                Transform tentacleTarget = tentacleI == _tentacleToTargetIndex ? _target : _randomTargets[tentacleI];
+
+
+                _done = false;
+                if (!_done)
                 {
-                    // The vector from the ith joint to the end effector
-                    Vector3 r1 = (_tentacles[tentacleI].Bones[_tentacles[tentacleI].Bones.Length - 1].transform.position -
-                        _tentacles[tentacleI].Bones[i].transform.position).normalized;
 
-                    // The vector from the ith joint to the target
-                    Vector3 r2 = (_randomTargets[tentacleI].position - _tentacles[tentacleI].Bones[i].transform.position).normalized;
-
-                    // to avoid dividing by tiny numbers
-                    if (r1.magnitude * r2.magnitude <= 0.001f)
+                    if (_tries[tentacleI] <= _mtries)
                     {
-                        // cos ? sin? 
-                        _cos[i] = 1.0f;
-                        _sin[i] = 0.0f;
+                        for (int i = tentacleBones.Length - 2; i >= 0; i--)
+                        {
+                            // The vector from the ith joint to the end effector
+                            Vector3 r1 = (tentacleBones[tentacleBones.Length - 1].transform.position - tentacleBones[i].transform.position).normalized;
+
+                            // The vector from the ith joint to the target
+                            Vector3 r2 = (tentacleTarget.position - tentacleBones[i].transform.position).normalized;
+
+                            // to avoid dividing by tiny numbers
+                            if (r1.magnitude * r2.magnitude <= 0.001f)
+                            {
+                                // cos ? sin? 
+                                _cos = 1.0f;
+                                _sin = 0.0f;
+                            }
+                            else
+                            {
+                                // find the components using dot and cross product
+                                //TODO4
+                                float dot = Vector3.Dot(r1, r2);
+                                _cos = dot;
+                                Vector3 cross = Vector3.Cross(r1, r2);
+                                _sin = cross.magnitude;
+                            }
+
+
+                            // The axis of rotation 
+                            Vector3 axis = Vector3.Cross(r1, r2).normalized;
+
+                            // find the angle between r1 and r2 (and clamp values if needed avoid errors)
+                            _theta = Mathf.Acos(Mathf.Clamp(_cos, -1f, 1f));
+
+                            //Optional. correct angles if needed, depending on angles invert angle if sin component is negative
+                            if (_sin < 0.0f)
+                                _theta = -_theta;
+
+
+                            // obtain an angle value between -pi and pi, and then convert to degrees
+                            _theta = _theta * Mathf.Rad2Deg;
+
+                            // rotate the ith joint along the axis by theta degrees in the world space.
+                            tentacleBones[i].transform.rotation = Quaternion.AngleAxis(_theta, axis) * tentacleBones[i].transform.rotation;
+
+                            ++_tries[tentacleI];
+                        }
                     }
+
+                    // find the difference in the positions of the end effector and the target
+                    Vector3 targetToEffector = tentacleBones[tentacleBones.Length - 1].transform.position - tentacleTarget.position;
+
+                    // if target is within reach (within epsilon) then the process is done
+                    if (targetToEffector.magnitude < _epsilon)
+                    {
+                        _done = true;
+                    }
+                    // if it isn't, then the process should be repeated
                     else
                     {
-                        // find the components using dot and cross product
-                        //TODO4
-                        float dot = Vector3.Dot(r1, r2);
-                        _cos[i] = dot;
-                        Vector3 cross = Vector3.Cross(r1, r2);
-                        _sin[i] = cross.magnitude;
+                        _done = false;
                     }
 
-
-                    // The axis of rotation 
-                    Vector3 axis = Vector3.Cross(r1, r2).normalized;
-
-                    // find the angle between r1 and r2 (and clamp values if needed avoid errors)
-                    _theta[i] = Mathf.Acos(Mathf.Clamp(_cos[i], -1f, 1f));
-
-                    //Optional. correct angles if needed, depending on angles invert angle if sin component is negative
-                    if (_sin[i] < 0.0f)
-                        _theta[i] = -_theta[i];
-
-
-                    // obtain an angle value between -pi and pi, and then convert to degrees
-                    _theta[i] = _theta[i] * Mathf.Rad2Deg;
-
-                    // rotate the ith joint along the axis by theta degrees in the world space.
-                    _tentacles[tentacleI].Bones[i].transform.rotation = 
-                        Quaternion.AngleAxis(_theta[i], axis) * _tentacles[tentacleI].Bones[i].transform.rotation;
+                    // the target has moved, reset tries to 0 and change tpos
+                    if (tentacleTarget.position != tpos[tentacleI])
+                    {
+                        _tries[tentacleI] = 0;
+                        tpos[tentacleI] = tentacleTarget.position;
+                    }
 
                 }
+
+                _tentacles[tentacleI].EndEffectorSphere = tentacleBones[tentacleBones.Length - 1];
+
             }
             
             
