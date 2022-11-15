@@ -18,7 +18,8 @@ namespace OctopusController
         Transform _target;
 
         Transform[] _randomTargets;// = new Transform[4];
-        int _tentacleToTargetIndex = 0; // start at 0 
+        int _tentacleToTargetIndex = -1; // start at 0 
+        bool _ballWasShot;
 
         float _twistMin, _twistMax;
         float _swingMin, _swingMax;
@@ -88,11 +89,16 @@ namespace OctopusController
                 //TODO: use the regions however you need to make sure each tentacle stays in its region
                 regionToTentacleIndex.Add(randomTargets[i].parent, i);
             }
+
+            _tentacleToTargetIndex = -1;
+            _ballWasShot = false;
         }
 
               
         public void NotifyTarget(Transform target, Transform region)
         {
+            if (!_ballWasShot) return;
+
             _currentRegion = region;
             _target = target;
 
@@ -107,6 +113,8 @@ namespace OctopusController
         public void NotifyShoot() {
             //TODO. what happens here?
             Debug.Log("Shoot");
+
+            _ballWasShot = true;
         }
 
 
@@ -132,7 +140,7 @@ namespace OctopusController
             {
                 Transform[] tentacleBones = _tentacles[tentacleI].Bones;
 
-                Transform tentacleTarget = tentacleI == _tentacleToTargetIndex ? _target : _randomTargets[tentacleI];
+                Transform tentacleTarget = (_ballWasShot && tentacleI == _tentacleToTargetIndex) ? _target : _randomTargets[tentacleI];
 
 
                 _done = false;
