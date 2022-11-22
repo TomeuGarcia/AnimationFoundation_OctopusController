@@ -58,6 +58,10 @@ namespace OctopusController
         Transform[] legFutureBases;
         MyTentacleController[] _legs = new MyTentacleController[6];
 
+        Vector3[] bonePositionCopy;
+        float[][] legsDistances;
+        bool doneFABRIK;
+
         
         #region public
         public void InitLegs(Transform[] LegRoots,Transform[] LegFutureBases, Transform[] LegTargets)
@@ -71,6 +75,8 @@ namespace OctopusController
                 //TODO: initialize anything needed for the FABRIK implementation
             }
 
+            legFutureBases = LegFutureBases;
+            legTargets = LegTargets;
         }
 
         public void InitTail(Transform TailBase)
@@ -85,18 +91,21 @@ namespace OctopusController
             _tailBoneOffsets = new Vector3[_tail.Bones.Length];
             for (int i = 0; i < _tail.Bones.Length; ++i)
             {
-                _tail.Bones[i].localRotation.ToAngleAxis(out _tailBoneAngles[i], out _tailBoneAxis[i]);
 
                 if (i > 0)
                 {
+                    _tailBoneAxis[i] = _tail.Bones[i].right;
+                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.x;
                     _tailBoneOffsets[i] = Quaternion.Inverse(_tail.Bones[i-1].rotation) * (_tail.Bones[i].position - _tail.Bones[i - 1].position);
                 }
                 else
                 {
+                    _tailBoneAxis[i] = _tail.Bones[i].forward; // Allows tail to rotate sideways
+                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.z;
                     _tailBoneOffsets[i] = _tail.Bones[i].position;
                 }
-            }
-            _tailBoneAxis[0] = _tail.Bones[0].forward; // Allows tail to rotate sideways
+
+            }            
 
 
             _errorFunction = DistanceFromTarget;
@@ -173,7 +182,19 @@ namespace OctopusController
             for (int i = 0; i < _tailBoneAngles.Length; i++)
             {
                 //_tail.Bones[i].localRotation = Quaternion.identity;
-                _tail.Bones[i].localRotation = Quaternion.AngleAxis(_tailBoneAngles[i], _tailBoneAxis[i]);
+
+                Vector3 loclaEulerAngles = _tail.Bones[i].localEulerAngles;
+                if (i == 0)
+                {
+                    _tail.Bones[i].localEulerAngles =
+                        new Vector3(loclaEulerAngles.x, loclaEulerAngles.y, 0) + new Vector3(0, 0, _tailBoneAngles[i]);
+                }
+                else
+                {
+                    _tail.Bones[i].localEulerAngles =
+                        new Vector3(0, loclaEulerAngles.y, loclaEulerAngles.z) + new Vector3(_tailBoneAngles[i], 0, 0);
+                }
+
             }
         }
 
