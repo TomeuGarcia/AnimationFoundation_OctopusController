@@ -47,7 +47,7 @@ namespace OctopusController
         private ErrorFunction _errorFunction;
 
         public float DeltaGradient = 0.1f; // Used to simulate gradient (degrees)
-        public float LearningRate = 2.0f; // How much we move depending on the gradient
+        public float LearningRate = 4.0f; // How much we move depending on the gradient
 
         public float StopThreshold = 0.1f; // If closer than this, it stops
         public float SlowdownThreshold = 0.25f; // If closer than this, it linearly slows down
@@ -96,7 +96,7 @@ namespace OctopusController
                     _tailBoneOffsets[i] = _tail.Bones[i].position;
                 }
             }
-            _tailBoneAxis[0] = _tail.Bones[0].forward;
+            _tailBoneAxis[0] = _tail.Bones[0].forward; // Allows tail to rotate sideways
 
 
             _errorFunction = DistanceFromTarget;
