@@ -71,7 +71,7 @@ namespace OctopusController
 
         private void SetTailBones(Transform root)
         {
-            Transform bone = root;
+            Transform bone = root.GetChild(0);
 
             List<Transform> bones = new List<Transform>();
 
@@ -80,7 +80,6 @@ namespace OctopusController
                 bones.Add(bone);
                 bone = bone.GetChild(1);
             }
-            bones.Add(bone);
 
             _bones = bones.ToArray();
         }
