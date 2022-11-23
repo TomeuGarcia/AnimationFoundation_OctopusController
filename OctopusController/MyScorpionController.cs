@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using UnityEngine;
 
@@ -58,21 +59,42 @@ namespace OctopusController
         Transform[] legFutureBases;
         MyTentacleController[] _legs = new MyTentacleController[6];
 
-        Vector3[] bonePositionCopy;
-        float[][] legsDistances;
+        List<Vector3[]> bonePositionsCopy;
+        List<float[]> legsDistances;
         bool doneFABRIK;
+        float _angleThreshold = 1.0f;
 
-        
+        float _legMoveThreshold = 0.1f;
+        float _legFarAwayThreashold = 0.5f;
+        bool[] _legIsMoving;
+        bool _startedWalking = false;
+
+
         #region public
-        public void InitLegs(Transform[] LegRoots,Transform[] LegFutureBases, Transform[] LegTargets)
+        public void InitLegs(Transform[] LegRoots, Transform[] LegFutureBases, Transform[] LegTargets)
         {
             _legs = new MyTentacleController[LegRoots.Length];
+
             //Legs init
-            for(int i = 0; i < LegRoots.Length; i++)
+            bonePositionsCopy = new List<Vector3[]>();
+            legsDistances = new List<float[]>();
+            _legIsMoving = new bool[LegRoots.Length];
+
+            for (int i = 0; i < LegRoots.Length; i++)
             {
                 _legs[i] = new MyTentacleController();
                 _legs[i].LoadTentacleJoints(LegRoots[i], TentacleMode.LEG);
+
                 //TODO: initialize anything needed for the FABRIK implementation
+                bonePositionsCopy.Add(new Vector3[_legs[i].Bones.Length]);
+                
+                legsDistances.Add(new float[_legs[i].Bones.Length - 1]);
+                for (int boneI = 0; boneI < legsDistances[i].Length; ++boneI)
+                {
+                    legsDistances[i][boneI] = Vector3.Distance(_legs[i].Bones[boneI].position, _legs[i].Bones[boneI + 1].position);
+                }
+
+                _legIsMoving[i] = false;
             }
 
             legFutureBases = LegFutureBases;
@@ -110,7 +132,7 @@ namespace OctopusController
 
             _errorFunction = DistanceFromTarget;
 
-            tailEndEffector = _tail.Bones[_tail.Bones.Length - 1];
+            tailEndEffector = _tail.EndEffectorSphere;
         }
 
         //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
@@ -125,7 +147,7 @@ namespace OctopusController
         //TODO: Notifies the start of the walking animation
         public void NotifyStartWalk()
         {
-
+            _startedWalking = true;
         }
 
         //TODO: create the apropiate animations and update the IK from the legs and tail
@@ -133,6 +155,7 @@ namespace OctopusController
         public void UpdateIK()
         {
             updateTail();
+            updateLegPos();
         }
         #endregion
 
@@ -141,15 +164,144 @@ namespace OctopusController
         //TODO: Implement the leg base animations and logic
         private void updateLegPos()
         {
+            if (!_startedWalking) return;
+
             //check for the distance to the futureBase, then if it's too far away start moving the leg towards the future base position
             //
-        }
-        
-        //TODO: implement fabrik method to move legs 
-        private void updateLegs()
-        {
+
+            for (int legI = 0; legI < _legs.Length; ++legI)
+            {
+                float futureBaseDistance = Vector3.Distance(_legs[legI].Bones[0].position, legFutureBases[legI].position);
+
+                _legs[legI].Bones[0].position = Vector3.Lerp(_legs[legI].Bones[0].position, legFutureBases[legI].position, futureBaseDistance / _legFarAwayThreashold);
+
+                //if (futureBaseDistance > _legFarAwayThreashold)
+                //{
+                //    _legs[legI].Bones[0].position = legFutureBases[legI].position;
+                //}
+
+                if (futureBaseDistance > _legMoveThreshold)
+                {
+                    updateLegFABRIK(_legs[legI].Bones, legTargets[legI], bonePositionsCopy[legI], legsDistances[legI]);
+                }
+            }
 
         }
+        
+        ////TODO: implement fabrik method to move legs 
+        //private void updateLegs()
+        //{
+            
+        //}
+
+        private void updateLegFABRIK(Transform[] joints, Transform target, Vector3[] positionsCopy, float[] distances)
+        {
+            for (int i = 0; i < joints.Length; ++i)
+            {
+                positionsCopy[i] = joints[i].position;
+            }
+
+            doneFABRIK = false;
+
+
+            if (!doneFABRIK)
+            {
+                float targetRootDist = Vector3.Distance(positionsCopy[0], target.position);
+
+                // Update joint positions
+                if (targetRootDist > distances.Sum())
+                {
+                    // The target is unreachable
+                    for (int i = 0; i < joints.Length - 1; ++i)
+                    {
+                        // Find the distance between the target and the joint
+                        float targetToJointDist = Vector3.Distance(target.position, positionsCopy[i]);
+                        float ratio = distances[i] / targetToJointDist;
+
+                        // Find the new joint position
+                        positionsCopy[i + 1] = (1 - ratio) * positionsCopy[i] + ratio * target.position;
+
+                    }
+
+                    doneFABRIK = true;
+                }
+                else
+                {
+                    // The target is reachable
+
+                    // Store root joint's initial position
+
+                    // TODO (done)
+                    // Check wether the distance between the end effector and the target is greater than tolerance
+                    float tolerance = 0.05f;
+                    float targetToEndEffectorDistance = Vector3.Distance(positionsCopy[positionsCopy.Length - 1], target.position);
+
+                    while (targetToEndEffectorDistance > tolerance)
+                    {
+                        // STAGE 1: FORWARD REACHING
+                        //TODO (done)
+
+                        // Set end effector as target
+                        positionsCopy[positionsCopy.Length - 1] = target.position;
+
+                        for (int i = positionsCopy.Length - 2; i >= 0; --i)
+                        {
+                            // Find the distance between the new joint position (i+1) and the current joint (i)
+                            float distanceJoints = Vector3.Distance(positionsCopy[i], positionsCopy[i + 1]);
+                            float ratio = distances[i] / distanceJoints;
+
+                            // Find the new joint position
+                            positionsCopy[i] = (1 - ratio) * positionsCopy[i + 1] + ratio * positionsCopy[i];
+                        }
+
+
+
+                        // STAGE 2: BACKWARD REACHING
+                        //TODO (done)
+
+                        // Set the root its initial position
+                        positionsCopy[0] = joints[0].position;
+
+                        for (int i = 1; i < positionsCopy.Length - 1; ++i)
+                        {
+                            // Find the distance between the new joint position (i+1) and the current joint (i)
+                            float distanceJoints = Vector3.Distance(positionsCopy[i - 1], positionsCopy[i]);
+                            float ratio = distances[i - 1] / distanceJoints;
+
+                            // Find the new joint position
+                            positionsCopy[i] = (1 - ratio) * positionsCopy[i - 1] + ratio * positionsCopy[i];
+                        }
+
+                        targetToEndEffectorDistance = Vector3.Distance(positionsCopy[positionsCopy.Length - 1], target.position); // Recompute
+                    }
+
+                    doneFABRIK = true;
+
+                }
+
+                // Update original joint rotations
+                for (int i = 0; i < joints.Length - 1; i++)
+                {
+                    //TODO (done)
+
+                    Vector3 oldDir = (joints[i + 1].position - joints[i].position).normalized;
+                    Vector3 newDir = (positionsCopy[i + 1] - positionsCopy[i]).normalized;
+
+                    Vector3 axis = Vector3.Cross(oldDir, newDir).normalized;
+                    float angle = Mathf.Acos(Vector3.Dot(oldDir, newDir)) * Mathf.Rad2Deg;
+
+                    if (angle > _angleThreshold)
+                    {
+                        joints[i].rotation = Quaternion.AngleAxis(angle, axis) * joints[i].rotation;
+                    }
+
+                    //joints[i].position = copy[i]; // just for testing
+                }
+
+            }
+        }
+
+
 
         //TODO: implement Gradient Descent method to move tail if necessary
         private void updateTail()
@@ -177,22 +329,22 @@ namespace OctopusController
                 _tailBoneAngles[i] = _tailBoneAngles[i] - (LearningRate * CalculateGradient(target, _tailBoneAngles, i, DeltaGradient));
             }
 
-            // TODO 
+            // TODO (done)
             // Aplly rotations
             for (int i = 0; i < _tailBoneAngles.Length; i++)
             {
                 //_tail.Bones[i].localRotation = Quaternion.identity;
 
-                Vector3 loclaEulerAngles = _tail.Bones[i].localEulerAngles;
+                Vector3 localEulerAngles = _tail.Bones[i].localEulerAngles;
                 if (i == 0)
                 {
                     _tail.Bones[i].localEulerAngles =
-                        new Vector3(loclaEulerAngles.x, loclaEulerAngles.y, 0) + new Vector3(0, 0, _tailBoneAngles[i]);
+                        new Vector3(localEulerAngles.x, localEulerAngles.y, 0) + new Vector3(0, 0, _tailBoneAngles[i]);
                 }
                 else
                 {
                     _tail.Bones[i].localEulerAngles =
-                        new Vector3(0, loclaEulerAngles.y, loclaEulerAngles.z) + new Vector3(_tailBoneAngles[i], 0, 0);
+                        new Vector3(0, localEulerAngles.y, localEulerAngles.z) + new Vector3(_tailBoneAngles[i], 0, 0);
                 }
 
             }
@@ -236,8 +388,15 @@ namespace OctopusController
                 Vector3 prev = prevPoint;
                 rotation = rotation * Quaternion.AngleAxis(Solution[i], _tailBoneAxis[i]);
 
-                //prevPoint += _tailBoneOffsets[i + 1];                            //TODO: compute offsets!
-                prevPoint += rotation * _tailBoneOffsets[i + 1];                            //TODO: compute offsets!
+                //prevPoint += _tailBoneOffsets[i + 1];
+                if (i == 0)
+                {
+                    prevPoint += rotation * _tailBoneOffsets[i + 1];
+                }
+                else
+                {
+                    prevPoint += rotation * _tailBoneOffsets[i + 1];
+                }
 
                 Debug.DrawLine(prev, prevPoint, Color.blue);
             }
