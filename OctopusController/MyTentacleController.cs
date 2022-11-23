@@ -84,5 +84,21 @@ namespace OctopusController
             _bones = bones.ToArray();
         }
 
+        private void SetLegBones(Transform root)
+        {
+            Transform bone = root.GetChild(0);
+
+            List<Transform> bones = new List<Transform>();
+
+            while (bone.childCount > 0)
+            {
+                bones.Add(bone);
+                bone = bone.GetChild(1);
+            }
+            bones.Add(bone);
+
+            _bones = bones.ToArray();
+        }
+
     }
 }
