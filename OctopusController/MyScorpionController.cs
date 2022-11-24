@@ -64,9 +64,12 @@ namespace OctopusController
         bool doneFABRIK;
         float _angleThreshold = 1.0f;
 
-        float _legMoveThreshold = 0.1f;
-        float _legFarAwayThreashold = 0.5f;
+        float _legFarAwayThreashold = 0.8f;
         bool[] _legIsMoving;
+        Vector3[] _legsBaseOrigin;
+        Vector3[] _legsBaseDestination;
+        float[] _legsMoveBaseTimer;
+        float _legsMoveDuration = 0.10f;
         bool _startedWalking = false;
 
 
@@ -78,7 +81,11 @@ namespace OctopusController
             //Legs init
             bonePositionsCopy = new List<Vector3[]>();
             legsDistances = new List<float[]>();
+
             _legIsMoving = new bool[LegRoots.Length];
+            _legsBaseOrigin = new Vector3[LegRoots.Length];
+            _legsBaseDestination = new Vector3[LegRoots.Length];
+            _legsMoveBaseTimer = new float[LegRoots.Length];
 
             for (int i = 0; i < LegRoots.Length; i++)
             {
@@ -95,6 +102,10 @@ namespace OctopusController
                 }
 
                 _legIsMoving[i] = false;
+
+                _legsBaseOrigin[i] = _legs[i].Bones[0].position;
+                _legsBaseDestination[i] = LegFutureBases[i].position;
+                _legsMoveBaseTimer[i] = 0f;
             }
 
             legFutureBases = LegFutureBases;
@@ -114,17 +125,18 @@ namespace OctopusController
             for (int i = 0; i < _tail.Bones.Length; ++i)
             {
 
-                if (i > 0)
+                if (i == 0)
                 {
-                    _tailBoneAxis[i] = _tail.Bones[i].right;
-                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.x;
-                    _tailBoneOffsets[i] = Quaternion.Inverse(_tail.Bones[i-1].rotation) * (_tail.Bones[i].position - _tail.Bones[i - 1].position);
+                    _tailBoneAxis[i] = Vector3.forward; // Allows tail to rotate sideways
+                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.z;
+                    _tailBoneOffsets[i] = _tail.Bones[i].position;
+
                 }
                 else
                 {
-                    _tailBoneAxis[i] = _tail.Bones[i].forward; // Allows tail to rotate sideways
-                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.z;
-                    _tailBoneOffsets[i] = _tail.Bones[i].position;
+                    _tailBoneAxis[i] = Vector3.right;
+                    _tailBoneAngles[i] = _tail.Bones[i].localEulerAngles.x;
+                    _tailBoneOffsets[i] = Quaternion.Inverse(_tail.Bones[i - 1].rotation) * (_tail.Bones[i].position - _tail.Bones[i - 1].position);
                 }
 
             }            
@@ -154,8 +166,8 @@ namespace OctopusController
 
         public void UpdateIK()
         {
-            updateTail();
             updateLegPos();
+            updateTail();
         }
         #endregion
 
@@ -173,17 +185,36 @@ namespace OctopusController
             {
                 float futureBaseDistance = Vector3.Distance(_legs[legI].Bones[0].position, legFutureBases[legI].position);
 
-                _legs[legI].Bones[0].position = Vector3.Lerp(_legs[legI].Bones[0].position, legFutureBases[legI].position, futureBaseDistance / _legFarAwayThreashold);
+                
 
-                //if (futureBaseDistance > _legFarAwayThreashold)
-                //{
-                //    _legs[legI].Bones[0].position = legFutureBases[legI].position;
-                //}
 
-                if (futureBaseDistance > _legMoveThreshold)
+                if (futureBaseDistance > _legFarAwayThreashold && !_legIsMoving[legI])
                 {
-                    updateLegFABRIK(_legs[legI].Bones, legTargets[legI], bonePositionsCopy[legI], legsDistances[legI]);
+                    // start reposition leg's base
+                    //_legs[legI].Bones[0].position = legFutureBases[legI].position;
+
+                    _legIsMoving[legI] = true;
+                    _legsMoveBaseTimer[legI] = 0f;
+                    _legsBaseOrigin[legI] = _legs[legI].Bones[0].position;
+                    _legsBaseDestination[legI] = legFutureBases[legI].position;
                 }
+
+                if (_legIsMoving[legI])
+                {
+                    _legsMoveBaseTimer[legI] += Time.deltaTime;
+                    float t = _legsMoveBaseTimer[legI] / _legsMoveDuration;
+
+                    _legs[legI].Bones[0].position = Vector3.Lerp(_legsBaseOrigin[legI], _legsBaseDestination[legI], t);
+
+                    if (t > 0.999f)
+                    {
+                        _legIsMoving[legI] = false;
+                    }
+                }
+
+
+                updateLegFABRIK(_legs[legI].Bones, legTargets[legI], bonePositionsCopy[legI], legsDistances[legI]);
+
             }
 
         }
@@ -380,7 +411,7 @@ namespace OctopusController
 
             // Takes object initial rotation into account
             //Quaternion rotation = transform.rotation;
-            Quaternion rotation = Quaternion.identity; // ??? ask if correct
+            Quaternion rotation = Quaternion.AngleAxis(_tail.Bones[0].localEulerAngles.x, Vector3.right); // ??? ask if correct
 
             //TODO (done)
             for (int i = 0; i < Solution.Length - 1; ++i)
