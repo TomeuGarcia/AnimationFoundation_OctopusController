@@ -21,7 +21,7 @@ namespace OctopusController
         Transform _endEffectorSphere;
 
         public Transform[] Bones { get => _bones; }
-        public Transform EndEffectorSphere { set => _endEffectorSphere = value; }
+        public Transform EndEffectorSphere { get => _endEffectorSphere;  set => _endEffectorSphere = value; }
 
         //Exercise 1.
         public Transform[] LoadTentacleJoints(Transform root, TentacleMode mode)
@@ -33,6 +33,9 @@ namespace OctopusController
             switch (tentacleMode){
                 case TentacleMode.LEG:
                     //TODO: in _endEffectorsphere you keep a reference to the base of the leg
+                    {
+                        SetLegBones(root);
+                    }
                     break;
                 case TentacleMode.TAIL:
                     //TODO: in _endEffectorsphere you keep a reference to the red sphere 
@@ -82,6 +85,8 @@ namespace OctopusController
             }
 
             _bones = bones.ToArray();
+
+            _endEffectorSphere = bones[_bones.Length - 1];
         }
 
         private void SetLegBones(Transform root)
@@ -98,6 +103,8 @@ namespace OctopusController
             bones.Add(bone);
 
             _bones = bones.ToArray();
+
+            _endEffectorSphere = bones[_bones.Length - 1];
         }
 
     }
