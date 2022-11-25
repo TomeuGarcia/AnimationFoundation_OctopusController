@@ -8,14 +8,51 @@ using UnityEngine;
 
 namespace OctopusController
 {
-  
+
     public class MyScorpionController
     {
+        public struct PositionRotation
+        {
+            Vector3 position;
+            Quaternion rotation;
+
+            public PositionRotation(Vector3 position, Quaternion rotation)
+            {
+                this.position = position;
+                this.rotation = rotation;
+            }
+
+            // PositionRotation to Vector3
+            public static implicit operator Vector3(PositionRotation pr)
+            {
+                return pr.position;
+            }
+            // PositionRotation to Quaternion
+            public static implicit operator Quaternion(PositionRotation pr)
+            {
+                return pr.rotation;
+            }
+        }
+
         //TAIL
         Transform tailTarget;
         Transform tailEndEffector;
         MyTentacleController _tail;
-        float animationRange;
+        float animationRange = 5f;
+
+        float[] _tailBoneAngles;
+        Vector3[] _tailBoneAxis;
+        Vector3[] _tailBoneOffsets;
+
+        public delegate float ErrorFunction(Vector3 target, float[] solution);
+        private ErrorFunction _errorFunction;
+
+        public float DeltaGradient = 0.1f; // Used to simulate gradient (degrees)
+        public float LearningRate = 10.0f; // How much we move depending on the gradient
+
+        public float StopThreshold = 0.1f; // If closer than this, it stops
+        public float SlowdownThreshold = 0.25f; // If closer than this, it linearly slows down
+
 
         //LEGS
         Transform[] legTargets;
@@ -57,7 +94,7 @@ namespace OctopusController
 
                 //TODO: initialize anything needed for the FABRIK implementation
                 bonePositionsCopy.Add(new Vector3[_legs[i].Bones.Length]);
-                
+
                 legsDistances.Add(new float[_legs[i].Bones.Length - 1]);
                 for (int boneI = 0; boneI < legsDistances[i].Length; ++boneI)
                 {
@@ -79,6 +116,7 @@ namespace OctopusController
         {
             _tail = new MyTentacleController();
             _tail.LoadTentacleJoints(TailBase, TentacleMode.TAIL);
+
             //TODO: Initialize anything needed for the Gradient Descent implementation
 
             _tailBoneAxis = new Vector3[_tail.Bones.Length];
@@ -101,7 +139,7 @@ namespace OctopusController
                     _tailBoneOffsets[i] = Quaternion.Inverse(_tail.Bones[i - 1].rotation) * (_tail.Bones[i].position - _tail.Bones[i - 1].position);
                 }
 
-            }            
+            }
 
 
             _errorFunction = DistanceFromTarget;
@@ -112,7 +150,10 @@ namespace OctopusController
         //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
         public void NotifyTailTarget(Transform target)
         {
-
+            if (Vector3.Distance(target.position, tailEndEffector.position) < animationRange)
+            {
+                tailTarget = target;
+            }
         }
 
         //TODO: Notifies the start of the walking animation
@@ -144,7 +185,7 @@ namespace OctopusController
             {
                 float futureBaseDistance = Vector3.Distance(_legs[legI].Bones[0].position, legFutureBases[legI].position);
 
-                
+
 
 
                 if (futureBaseDistance > _legFarAwayThreashold && !_legIsMoving[legI])
@@ -177,11 +218,11 @@ namespace OctopusController
             }
 
         }
-        
+
         ////TODO: implement fabrik method to move legs 
         //private void updateLegs()
         //{
-            
+
         //}
 
         private void updateLegFABRIK(Transform[] joints, Transform target, Vector3[] positionsCopy, float[] distances)
@@ -296,6 +337,14 @@ namespace OctopusController
         //TODO: implement Gradient Descent method to move tail if necessary
         private void updateTail()
         {
+            if (tailTarget != null)
+            {
+                if (Vector3.Distance(tailTarget.position, tailEndEffector.position) > StopThreshold)
+                {
+                    ApproachTarget(tailTarget.position);
+                }
+            }
+        }
 
         #endregion
 
@@ -331,10 +380,17 @@ namespace OctopusController
 
             }
         }
-        //TODO: implement fabrik method to move legs 
-        private void updateLegs()
-        {
 
+
+        public float CalculateGradient(Vector3 target, float[] Solution, int i, float delta)
+        {
+            //TODO
+            Solution[i] += delta; // Temporaraly get delta solution
+            float deltaDistamceFromTarget = _errorFunction(target, Solution);
+
+            Solution[i] -= delta; // Reset Solution
+
+            return (deltaDistamceFromTarget - _errorFunction(target, Solution)) / delta;
         }
 
         // Returns the distance from the target, given a solution
@@ -355,7 +411,9 @@ namespace OctopusController
 
             // Takes object initial rotation into account
             //Quaternion rotation = transform.rotation;
-            Quaternion rotation = Quaternion.AngleAxis(_tail.Bones[0].localEulerAngles.x, Vector3.right); // ??? ask if correct
+
+            // start with bone 0's initial offset (x component)
+            Quaternion rotation = Quaternion.AngleAxis(_tail.Bones[0].localEulerAngles.x, Vector3.right);
 
             //TODO (done)
             for (int i = 0; i < Solution.Length - 1; ++i)
