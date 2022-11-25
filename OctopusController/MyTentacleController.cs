@@ -10,7 +10,7 @@ using UnityEngine;
 namespace OctopusController
 {
 
-    
+
     internal class MyTentacleController
 
     //MAINTAIN THIS CLASS AS INTERNAL
@@ -21,7 +21,7 @@ namespace OctopusController
         Transform _endEffectorSphere;
 
         public Transform[] Bones { get => _bones; }
-        public Transform EndEffectorSphere { get => _endEffectorSphere;  set => _endEffectorSphere = value; }
+        public Transform EndEffectorSphere { get => _endEffectorSphere; set => _endEffectorSphere = value; }
 
         //Exercise 1.
         public Transform[] LoadTentacleJoints(Transform root, TentacleMode mode)
@@ -30,7 +30,8 @@ namespace OctopusController
             //you may want to use a list, and then convert it to an array and save it into _bones
             tentacleMode = mode;
 
-            switch (tentacleMode){
+            switch (tentacleMode)
+            {
                 case TentacleMode.LEG:
                     //TODO: in _endEffectorsphere you keep a reference to the base of the leg
                     {
@@ -74,7 +75,7 @@ namespace OctopusController
 
         private void SetTailBones(Transform root)
         {
-            Transform bone = root.GetChild(0);
+            Transform bone = root;
 
             List<Transform> bones = new List<Transform>();
 
@@ -83,6 +84,7 @@ namespace OctopusController
                 bones.Add(bone);
                 bone = bone.GetChild(1);
             }
+            bones.Add(bone);
 
             _bones = bones.ToArray();
 

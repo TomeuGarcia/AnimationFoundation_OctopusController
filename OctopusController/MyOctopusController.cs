@@ -47,6 +47,11 @@ namespace OctopusController
         private Vector3[] tpos;
 
 
+        readonly float _targetDuration = 3f;
+        float _targetTimer = 0f;
+
+
+
         #region public methods
         //DO NOT CHANGE THE PUBLIC METHODS!!
 
@@ -92,15 +97,17 @@ namespace OctopusController
 
             _tentacleToTargetIndex = -1;
             _ballWasShot = false;
+            _targetTimer = 0f;
         }
 
               
         public void NotifyTarget(Transform target, Transform region)
         {
-            if (!_ballWasShot) return;
+            if (!_ballWasShot || _targetTimer >= _targetDuration) return;
 
             _currentRegion = region;
             _target = target;
+
 
             
             if (regionToTentacleIndex.ContainsKey(region))
@@ -122,6 +129,19 @@ namespace OctopusController
         {
             //TODO: implement logic for the correct tentacle arm to stop the ball and implement CCD method
             update_ccd();
+
+            if (_ballWasShot) 
+            {
+                if (_targetTimer < _targetDuration)
+                {
+                    _targetTimer += Time.deltaTime;
+                }
+                else
+                {
+                    _tentacleToTargetIndex = -1;
+                }
+                
+            }
         }
 
 
@@ -141,7 +161,6 @@ namespace OctopusController
                 Transform[] tentacleBones = _tentacles[tentacleI].Bones;
 
                 Transform tentacleTarget = (_ballWasShot && tentacleI == _tentacleToTargetIndex) ? _target : _randomTargets[tentacleI];
-
 
                 _done = false;
                 if (!_done)
@@ -167,7 +186,6 @@ namespace OctopusController
                             else
                             {
                                 // find the components using dot and cross product
-                                //TODO4
                                 float dot = Vector3.Dot(r1, r2);
                                 _cos = dot;
                                 Vector3 cross = Vector3.Cross(r1, r2);
